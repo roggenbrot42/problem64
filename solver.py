@@ -8,6 +8,7 @@ def ip(c): #invert player
         return 'w'
     else: 
         return False
+        
 
 class Game:
     def __init__(self):
@@ -123,31 +124,35 @@ class Game:
         score = (M+S)*W + A*(1-W)
         return score
 
-    def play(self):
-        self.draw_board()
+    def is_terminal(self):
+        return False
+
+    def minimax(self, c, maxi, depth):
+        moves = self.next_moves(c)
+        omoves = self.next_moves(ip(c))
         
-        start = time.time()
-        moves = self.next_moves('b')
+        if depth == 0 or self.is_terminal():
+            return self.eval(c,moves,omoves)
 
-        for m in moves:
-            self.game_state[m[0]][m[1]] = 'b'
-            self.nb += 1
-            a = self.next_moves('b')
-            b = self.next_moves('w')
-            res = self.eval('b',a,b)
-            print("Eval: {}".format(res,7))
-            
-
-            self.game_state[m[0]][m[1]] = '.'
-            self.nb -= 1
-        end = time.time()
-        print("Evaluation Time: {}s".format(end-start,7))
+        if maxi == True:
+            value = -m.inf
+            for mov in moves:
+                value = max(value,self.minimax(ip(c),not(maxi),depth-1))
+            return value
+        else:
+            value = m.inf
+            for mov in moves:
+                value = min(value, self.minimax(ip(c),maxi,depth-1))
+            return value
+        
 
         
 
 def main():
     g = Game()
-    g.play()
+    g.draw_board()
+    g.minimax('b',True, 12)
+    g.draw_board()
 
 if __name__ == "__main__":
     main()
