@@ -19,10 +19,10 @@ class Game:
     def initialize_game(self):
         self.game_state = [['.','.','.','.','.','.','.','.'],
                             ['.','.','.','.','.','.','.','.'],
-                            ['.','.','.','.','.','w','.','.'],
-                            ['.','.','.','b','w','b','.','.'],
-                            ['.','.','b','w','b','.','.','.'],
-                            ['.','.','w','.','.','.','.','.'],
+                            ['.','.','.','.','.','.','.','.'],
+                            ['.','.','.','b','w','.','.','.'],
+                            ['.','.','.','w','b','.','.','.'],
+                            ['.','.','.','.','.','.','.','.'],
                             ['.','.','.','.','.','.','.','.'],
                             ['.','.','.','.','.','.','.','.']]
         self.structure = [[16, -4, 4, 2, 2, 4, -4, 16],
@@ -47,76 +47,6 @@ class Game:
                 print('{}'.format(self.game_state[i][j]), end=" ")
             print()
         print("  A B C D E F G H")
-
-    def test_horizontal(self, i, j, c):
-        retval = []
-        if j < 6 and self.game_state[i][j+1] == c:
-            k = j+2
-            while k<7 and self.game_state[i][k] == c:
-                k += 1
-            if self.game_state[i][k] == '.':
-                retval.append((i,k))
-        if j > 1 and self.game_state[i][j-1] == c:
-            k = j-2
-            while k > 0 and self.game_state[i][k] == c:
-                k -= 1
-            if self.game_state[i][k] == '.':
-                retval.append((i,k))
-        return retval
-
-    def test_vertical(self, i, j, c):
-        retval = []
-        if i < 6 and self.game_state[i+1][j] == c:
-            k = i+2
-            while k<8 and self.game_state[k][j] == c:
-                k += 1
-            if self.game_state[k][j] == '.':
-                retval.append((k,j))
-        if i > 1 and self.game_state[i-1][j] == c:
-            k = i-2
-            while k>0 and self.game_state[k][j] == c:
-                k -= 1
-            if self.game_state[k][j] == '.':
-                retval.append((k,j))
-        return retval
-
-    def test_diagonal(self, i, j,c):
-        retval = []
-        if i < 6:
-            if j<6 and self.game_state[i+1][j+1] == c:
-                k = i+2
-                l = j+2
-                while k<8 and l<8 and self.game_state[k][l] == c:
-                    k += 1
-                    l += 1
-                if self.game_state[k][l] == '.':
-                    retval.append((k,l))
-            if j > 1 and self.game_state[i+1][j-1] == c:
-                k = i+2
-                l = j-2
-                while k < 8 and l > 0 and self.game_state[k][l] == c:
-                    k += 1
-                    l -= 1
-                if self.game_state[k][l] == '.':
-                    retval.append((k,l))
-        if i > 1:
-            if j > 1 and self.game_state[i-1][j-1] == c:
-                k = i-2
-                l = j-2
-                while k > 0 and i > 0 and self.game_state[k][l] == c:
-                    k -= 1
-                    l -= 1
-                if self.game_state[k][l] == '.':
-                    retval.append((i-2,j-2))    
-            if j < 6 and self.game_state[i-1][j+1] == c:
-                k = i-2
-                l = j+2
-                while k > 0 and l < 8 and self.game_state[k][l] == c:
-                    k -= 1
-                    l += 1
-                if self.game_state[k][l] == '.':
-                    retval.append((i-2,j+2))
-        return retval
 
     def test_moves(self, i, j, player):
         retval = []
@@ -207,8 +137,11 @@ class Game:
        
         for i in range(0,8):
             for j in range(0,8):
-                    if i > 1 and i < 6 and j > 1 and j < 6 and self.game_state[i][j] != '.':
-                        outside_square == True
+                if not(i > 1 and i < 6 and j > 1 and j < 6) and self.game_state[i][j] != '.':
+                    outside_square == True
+                    break
+            if outside_square == True:
+                break
 
         for i in range(0,8):
             for j in range(0,8):
