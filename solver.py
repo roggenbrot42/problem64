@@ -19,10 +19,10 @@ class Game:
     def initialize_game(self):
         self.game_state = [['.','.','.','.','.','.','.','.'],
                             ['.','.','.','.','.','.','.','.'],
-                            ['.','.','.','.','.','.','.','.'],
-                            ['.','.','.','b','w','.','.','.'],
-                            ['.','.','.','w','b','.','.','.'],
-                            ['.','.','.','.','.','.','.','.'],
+                            ['.','.','.','.','.','w','.','.'],
+                            ['.','.','.','b','w','b','.','.'],
+                            ['.','.','b','w','b','.','.','.'],
+                            ['.','.','w','.','.','.','.','.'],
                             ['.','.','.','.','.','.','.','.'],
                             ['.','.','.','.','.','.','.','.']]
         self.structure = [[16, -4, 4, 2, 2, 4, -4, 16],
@@ -33,6 +33,8 @@ class Game:
                             [4, -2, 4, 2, 2, 4, -2, 4],
                             [-4, 12, -2, -2 ,-2, -2, -12,-4],
                             [16, -4, 4, 2, 2, 4, -4, 16]]
+        self.depth = 4
+
     def count(self):
         c = Counter(self.game_state[0])
         for i in range(1,8):
@@ -42,7 +44,7 @@ class Game:
 
     def draw_board(self):
         for i in range(0,8):
-            print(i, end=" ")
+            print(8-i, end=" ")
             for j in range(0,8):
                 print('{}'.format(self.game_state[i][j]), end=" ")
             print()
@@ -157,9 +159,9 @@ class Game:
             sum *= 3
         return sum
 
-    def eval(self,player,moves,omoves):
+    def eval(self,player,moves):
         c = self.count()
-
+        omoves = self.next_moves(ip(c))
         M = (len(moves)-len(omoves))*2
         S = self.eval_structure(player)
 
@@ -178,12 +180,10 @@ class Game:
     
     def minimax(self, c, maxi, depth):
         moves = self.next_moves(c)
-        omoves = self.next_moves(ip(c))
 
         #game is finished can't move anymore
-        if len(moves) == 0 and len(omoves) == 0\
-            or depth == 0:
-            return self.eval(c,moves,omoves)
+        if len(moves) == 0 or depth == 0:
+            return self.eval(c,moves)
         
 
         if maxi == True:
@@ -203,34 +203,36 @@ class Game:
     
     def alphabeta(self, c, maxi, depth, alpha, beta):
         moves = self.next_moves(c)
-        omoves = self.next_moves(ip(c))
-
-        #game is finished can't move anymore
-        if len(moves) == 0 and len(omoves) == 0\
-            or depth == 0:
-            return self.eval(c,moves,omoves)
+        retmv = None
         
-
+        #game is finished can't move anymore
+        if len(moves) == 0 or depth == 0:
+            return (self.eval(c,moves),retmv)
+        
         if maxi == True:
-            value = -m.inf
+            max_value = -m.inf
             for mov in moves:
                 s = self.make_move(c,mov)
-                value = max(value,self.alphabeta(ip(c),not(maxi),depth-1,alpha,beta))
-                alpha = max(alpha, value)
+                (value,xxx) = self.alphabeta(ip(c),False,depth-1,max_value,beta)
                 self.undo_move(mov,s)
-                if alpha >= beta:
-                    break
-            return value
+                if value > max_value:
+                    max_value = value
+                    if depth == self.depth:
+                        retmv = mov
+                    if max_value >= beta:
+                        break
+            return (value,retmv)
         else:
-            value = m.inf
+            min_value = m.inf
             for mov in moves:
                 s = self.make_move(c,mov)
-                value = min(value, self.alphabeta(ip(c),maxi,depth-1,alpha,beta))
-                beta = min(beta, value)
+                (value,xxx) = self.alphabeta(ip(c),True,depth-1,alpha,min_value)
                 self.undo_move(mov,s)
-                if alpha >= beta:
-                    break
-            return value
+                if value < min_value:
+                    min_value = value
+                    if min_value <= alpha:
+                        break
+            return (value,None)
 
 def main():
     g = Game()
@@ -240,37 +242,29 @@ def main():
     cp = 'b'
     moves = []
 
-    while True:
-        
-        mvs = g.next_moves(cp)
-        #print(mvs)
+    g.depth = 10
+    passing = 0
 
-        if len(mvs) == 0:
-            cp = ip(cp)
-            passing += 1
+    for i in range(0,12):
+        try:
+            
+            (value,mv) = g.alphabeta(cp,True,g.depth,m.inf,-m.inf)
+
+            if mv != None:
+                g.make_move(cp,mv)
+                moves.append(mv)
+                g.draw_board()
+                passing = 0
+            else:
+                passing += 1
+
             if passing == 2:
                 break
-            else:
-                continue
 
-        passing = 0
-        
-        bm = (-1,-1)
-        bv = -m.inf
-        for mv in mvs:
-            s = g.make_move(cp,mv)
-            nv = g.alphabeta(ip(cp),False,12,m.inf,-m.inf)
-            g.undo_move(mv,s)
-            if nv > bv:
-                bm = mv
-                bv = nv
-        g.make_move(cp,bm)
-        moves.append(bm)
-        
-        cp = ip(cp)
-
-    g.draw_board()
-
+            cp = ip(cp)
+        except KeyboardInterrupt:
+            break
+    
     c = g.count()
     if c['w'] > c['b']:
         print("White won!")
@@ -278,8 +272,8 @@ def main():
         print("Black won!")
 
     for mov in moves:
-        letter = chr(mov[0]+97)
-        number = 8-mov[1]
+        letter = chr(mov[1]+97)
+        number = 8-mov[0]
         print("{}{}".format(letter,number),end="")
     print()
 
