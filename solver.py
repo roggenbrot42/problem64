@@ -81,7 +81,7 @@ class Game:
         self.game_state[3][3] = self.game_state[4][4] = Color.black
         self.game_state[3][4] = self.game_state[4][3] = Color.white
 
-        self.depth = 12
+        self.shallow_depth = 4 #default for shallow depth move ordering
         self.counter = self.count()
         self.pruned = 0
         self.evals = 0
@@ -311,15 +311,44 @@ class Game:
             self.undo_move(mov,s)
         return value
 
+    def alphabeta_init(self,depth):
+        moves = self.next_moves(self.current_player)
+        if len(moves) == 1:
+            return moves[0]
+
+        retmov = None
+        sorted_moves = []
+        alpha = -m.inf
+        beta = m.inf
+        max_value = alpha
+        for mov in moves:
+            s = self.make_move(self.current_player,mov)
+            value = self.alphabeta_min(self.shallow_depth-1,max_value,beta)
+            self.undo_move(mov,s)
+            sorted_moves.append((value,mov))
+        sorted_moves.sort(reverse=True)
+        for item in sorted_moves:
+            mov = item[1]
+            s = self.make_move(self.current_player,mov)
+            value = self.alphabeta_min(depth-1,max_value,beta)
+            self.undo_move(mov,s)
+            if value > max_value:
+                max_value = value
+                retmov = mov
+                if max_value >= beta:
+                    self.pruned += 1
+                    break
+            #samesies but use the alphabetically lower version
+            if value == max_value and mov and mov < retmov:
+                retmov = mov
+        return (value,retmov)
+
     def alphabeta_max(self, depth, alpha, beta):
         moves = self.next_moves(self.current_player)
-        if self.depth == depth and len(moves) == 1:
-            return (m.inf, moves[0])
 
         if len(moves) == 0 or depth == 0:
-            return (self.eval(),None)
+            return self.eval()
         
-        retmov = None      
         max_value = alpha
         for mov in moves:
             s = self.make_move(self.current_player,mov)
@@ -327,16 +356,11 @@ class Game:
             self.undo_move(mov,s)
             if value > max_value:
                 max_value = value
-                if depth == self.depth:
-                    retmov = mov
                 if max_value >= beta:
                     self.pruned += 1
-                    break
-            #samesies but use the alphabetically lower version
-            if value == max_value and mov and mov < retmov:
-                retmov = mov                
+                    break               
 
-        return (max_value,retmov)
+        return max_value
     
     def alphabeta_min(self, depth, alpha, beta):
         moves = self.next_moves(Color.ip(self.current_player))
@@ -346,7 +370,7 @@ class Game:
         min_value = beta
         for mov in moves:
             s = self.make_move(-self.current_player,mov)
-            (value,xxx) = self.alphabeta_max(depth-1,alpha,min_value)
+            value = self.alphabeta_max(depth-1,alpha,min_value)
             self.undo_move(mov,s)
             if value < min_value:
                 min_value = value
@@ -361,7 +385,6 @@ def main():
     passing = 0
     moves = []
 
-    g.depth = 7
     passing = 0
 
     pm = None
@@ -370,11 +393,12 @@ def main():
     g.game_state[3][5] = Color.black
     g.game_state[4][2] = Color.black
     g.game_state[5][2] = Color.white
+    g.counter = g.count()
 
     g.draw_board()
 
 
-    g.counter = g.count()
+    g.shallow_depth = 4
 
 
     while True:
@@ -383,7 +407,7 @@ def main():
         cmv = g.moves
         cpr = g.pruned
         t1 = time.time()
-        (value,mv) = g.alphabeta_max(g.depth,-m.inf,m.inf)
+        (value,mv) = g.alphabeta_init(12)
         #(value,mv) = g.minimax_max(cp,g.depth)
         t1 = time.time() - t1
         print("Time: {}s".format(t1))
