@@ -29,7 +29,7 @@ class Move:
         self.y = int(y)
 
     def __str__(self):
-        return f"{chr(104-self.x)}{self.y+1}"
+        return f"{chr(self.x+97)}{8-self.y}"
     
     def __eq__(self, other): 
         if not isinstance(other, Move):
@@ -144,21 +144,16 @@ class Board:
         b = self.bit_reverse_8(self.bstate)
         if (a == self.wstate and b == self.bstate):
             symmetry |= 1
-        #check symmetry along (00) to (88)
-        a = self.bit_reverse_64(a)
-        b = self.bit_reverse_64(b)
-        if (a == self.wstate and b == self.bstate):
-            symmetry |= 4
         #check y symmetry:
         a = self.flip_vertically(self.wstate)
-        b = self.flip_vertically(self.wstate)
+        b = self.flip_vertically(self.bstate)
         if a == self.wstate and b == self.bstate:
             symmetry |= 2
-        #check symmetry along (08) to (80)
+        #check 180 degree rotation
         a = self.bit_reverse_64(self.wstate)
         b = self.bit_reverse_64(self.bstate)
-        if a == self.wstate and b == self.bstate:
-            symmetry |= 8
+        if (a == self.wstate and b == self.bstate):
+            symmetry |= 4
         return symmetry
     
     def count(self):
@@ -210,6 +205,7 @@ class Game:
         self.counter = self.game_state.count()
         self.pruned = 0
         self.evals = 0
+        self.symm = 0
         self.moves = 0
         self.current_player = Color.BLACK
         self.flipstack = Stack(3000)
@@ -278,10 +274,10 @@ class Game:
         else:
             rmin = 0
             rmax = 8
-
+        
         for i in range(rmin,rmax):
             for j in range(rmin,rmax):
-                if(self.game_state[i*8+j] == player):
+                if self.game_state[i*8+j] == player:
                     m = self.test_move(i,j,player)
                     next_moves += m
         used = set()
@@ -488,61 +484,39 @@ class Game:
                     break
         return min_value
 
-
-        #check y symmetry:
-#        a = self.flip_vertically(self.wstate)
-#        b = self.flip_vertically(self.wstate)
-#        if a == self.wstate and b == self.bstate:
-#            symmetry |= 2
-        #check symmetry along (08) to (80)
-#        a = self.bit_reverse_64(self.wstate)
-#        b = self.bit_reverse_64(self.bstate)
-#        if a == self.wstate and b == self.bstate:
-#            symmetry |= 8
-#        return symmetry
 def test():
-    g = Game()
-    b = g.game_state
-    b[0] = Color.BLACK
-    b[7] = Color.BLACK
-    b[63] = Color.BLACK
-    b[62] = Color.WHITE
+    b = Board(0,0)
+    b[27] = Color.BLACK
+    b[28] = Color.BLACK
+    b[63] = Color.WHITE
     b[56] = Color.WHITE
-    b = g.game_state.copy()
-    print("x symmetry")
-    print(b)
-    b.wstate = b.bit_reverse_8(b.wstate)
-    b.bstate = b.bit_reverse_8(b.bstate)
-    print(b)
-    b = g.game_state.copy()
-    print("y symmetry")
-    print (b)
-    b.wstate = b.flip_vertically(b.wstate)
-    b.bstate = b.flip_vertically(b.bstate)
-    print(b)
-    b = g.game_state.copy()
-    print("180 degree rotation")
-    print (b)
-    b.wstate = b.bit_reverse_64(b.wstate)
-    b.bstate = b.bit_reverse_64(b.bstate)
-    print(b)
-    b = g.game_state.copy()
-    print("00 88 symmetry")
-    print (b)
-    b.wstate = b.bit_reverse_8(b.wstate)
-    b.bstate = b.bit_reverse_8(b.bstate)
-    b.wstate = b.flip_vertically(b.wstate)
-    b.bstate = b.flip_vertically(b.bstate)  
-
-    print(b)
-
-
+    #b[62] = Color.WHITE
+    #b[56] = Color.WHITE
+    #b = g.game_state.copy()
+    #print("x symmetry")
+    #print(b)
+    assert(b.wstate == b.bit_reverse_8(b.wstate))
+    assert(b.bstate == b.bit_reverse_8(b.bstate))
+    b = Board(0,0)
+    b[0] = Color.WHITE
+    b[56] = Color.WHITE
+    #print("y symmetry")
+    #print (b)
+    assert(b.wstate == b.flip_vertically(b.wstate))
+    assert(b.bstate == b.flip_vertically(b.bstate))
+    #print(b)
+    b = Game().game_state
+    #print("180 degree rotation")
+    #print (b)
+    assert(b.wstate == b.bit_reverse_64(b.wstate))
+    assert(b.bstate == b.bit_reverse_64(b.bstate))
 
         
     
 def main():
-    #run()
     test()
+    run()
+    
     
 
 
@@ -562,14 +536,12 @@ def run():
 
     passing = 0
 
-    pm = None
-
-
     while True:
         #if cp == Color.BLACK:
         cev = g.evals
         cmv = g.moves
         cpr = g.pruned
+        sym = g.symm
         t1 = time.time()
         (value,mv) = g.alphabeta_init(7)
         #(value,mv) = g.minimax_max(cp,g.depth)
@@ -578,7 +550,8 @@ def run():
         cev = g.evals - cev
         cmv = g.moves - cmv
         cpr = g.pruned - cpr
-        print("Evals: {} Evals/s: {} Moves: {} Pruned: {}".format(cev,cev/t1,cmv,cpr))
+        sym = g.symm - sym
+        print("Evals: {} Evals/s: {} Moves: {} Pruned: {} Symmetry: {}".format(cev,cev/t1,cmv,cpr,sym))
        # else:
 
             #try:
