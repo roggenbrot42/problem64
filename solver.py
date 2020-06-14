@@ -5,6 +5,7 @@ from collections import Counter
 import copy
 from bitarray import bitarray
 from bitarray import util as btutil
+import argparse
 
 class Color:
     NONE = 0
@@ -135,7 +136,7 @@ class Board:
         return val
     
     def outside_square(self):
-        return (self.wstate | self.bstate) & self.square_mask > 0
+        return (self.wstate | self.bstate) & ~self.square_mask > 0
 
     def check_symmetries(self):
         symmetry = 0
@@ -195,14 +196,14 @@ class Game:
         self.initialize_game()
     
     def initialize_game(self):
-        self.game_state = Board(0,0)
-        self.game_state[27] = Color.BLACK
-        self.game_state[36] = Color.BLACK
-        self.game_state[28] = Color.WHITE
-        self.game_state[35] = Color.WHITE
+        self.board = Board(0,0)
+        self.board[27] = Color.BLACK
+        self.board[36] = Color.BLACK
+        self.board[28] = Color.WHITE
+        self.board[35] = Color.WHITE
 
         self.shallow_depth = 4 #default for shallow depth move ordering
-        self.counter = self.game_state.count()
+        self.counter = self.board.count()
         self.pruned = 0
         self.evals = 0
         self.symm = 0
@@ -222,18 +223,18 @@ class Game:
 
     #TODO: Implement actual test
     def move_valid(self, move, player):
-        if self.game_state[move.y*8+move.x] != Color.NONE:
+        if self.board[move.y*8+move.x] != Color.NONE:
             return False
         return True
 
     def count(self):
-        return self.game_state.count()
+        return self.board.count()
        
 
     def draw_board(self):
-        print(self.game_state)
+        print(self.board)
 
-    def test_move(self, i, j, player):
+    def scan_move(self, i, j, player):
         retval = []
         for yinc in range(-1,2):
             for xinc in range(-1,2):
@@ -248,7 +249,7 @@ class Game:
                     x += xinc
                     y += yinc
                     if x>=0 and y>=0 and x<=7 and y<=7:
-                        if self.game_state[y*8+x] == -player:
+                        if self.board[y*8+x] == -player:
                             nmoves += 1
                         else:
                             break
@@ -256,7 +257,7 @@ class Game:
                         nmoves = 0
                         break
 
-                if nmoves >  0 and self.game_state[y*8+x] == Color.NONE:
+                if nmoves >  0 and self.board[y*8+x] == Color.NONE:
                     if x < 0 or y < 0:
                         print("boink")
                     else:
@@ -268,7 +269,7 @@ class Game:
     def next_moves(self,player):
         next_moves = []
 
-        if self.game_state.outside_square() == False:
+        if self.board.outside_square() == False:
             rmin = 1
             rmax = 7
         else:
@@ -277,8 +278,8 @@ class Game:
         
         for i in range(rmin,rmax):
             for j in range(rmin,rmax):
-                if self.game_state[i*8+j] == player:
-                    m = self.test_move(i,j,player)
+                if self.board[i*8+j] == player:
+                    m = self.scan_move(i,j,player)
                     next_moves += m
         used = set()
         unique = [x for x in next_moves if x not in used and (used.add(x) or True)]
@@ -289,7 +290,7 @@ class Game:
         i = move.y
         j = move.x
 
-        self.game_state[i*8+j] = player
+        self.board[i*8+j] = player
 
         for yinc in range(-1,2):
             for xinc in range(-1,2):
@@ -303,7 +304,7 @@ class Game:
                     x += xinc
                     y += yinc
                     if x>=0 and y>=0 and x<=7 and y<=7:
-                        if self.game_state[y*8+x] == -player:
+                        if self.board[y*8+x] == -player:
                             nmoves += 1
                         else:
                             break
@@ -311,13 +312,13 @@ class Game:
                         nmoves = 0
                         break
 
-                if nmoves > 0 and self.game_state[y*8+x] == player:
+                if nmoves > 0 and self.board[y*8+x] == player:
                     x -= xinc
                     y -= yinc
-                    while self.game_state[y*8+x] == -player:
+                    while self.board[y*8+x] == -player:
                         self.flipstack.push(y,x)
                         flipped += 1
-                        self.game_state.flip(y*8+x)
+                        self.board.flip(y*8+x)
                         x -= xinc
                         y -= yinc
         self.counter[player] += flipped + 1
@@ -330,36 +331,37 @@ class Game:
         i = move.y
         j = move.x
 
-        player = self.game_state[i*8+j]
+        player = self.board[i*8+j]
         self.counter[player] -=  flipped + 1
         self.counter[-player] += flipped
-        self.game_state[i*8+j] = Color.NONE
+        self.board[i*8+j] = Color.NONE
 
         for i in range(0,flipped):
             (y,x) = self.flipstack.pop()
-            self.game_state.flip(y*8+x)
+            self.board.flip(y*8+x)
     
     def eval_structure(self,c):
         structure_sum = 0
-        outside_square = self.game_state.outside_square()
+        outside_square = self.board.outside_square()
         mult = 1
 
         if outside_square:
-            b = self.game_state.copy()
+            b = self.board.copy()
             b.wstate &= ~b.square_mask
             b.bstate &= ~b.square_mask
             mult = 3
         else:
-            b = self.game_state
+            b = self.board
 
         
         x = btutil.int2ba(b.wstate,length=64)
         y = btutil.int2ba(b.bstate,length=64)
         
-        structure_sum = np.matmul(x.tolist(),self.structure)
-        structure_sum -= np.matmul(y.tolist(),self.structure)
+        structure_sum = np.matmul(y.tolist(),self.structure)
+        structure_sum -= np.matmul(x.tolist(),self.structure)
 
-        structure_sum *= mult
+
+        structure_sum *= mult*c
         return structure_sum
 
     def eval(self):
@@ -484,7 +486,7 @@ class Game:
                     break
         return min_value
 
-def test():
+def test_symmetry():
     b = Board(0,0)
     b[27] = Color.BLACK
     b[28] = Color.BLACK
@@ -505,24 +507,54 @@ def test():
     assert(b.wstate == b.flip_vertically(b.wstate))
     assert(b.bstate == b.flip_vertically(b.bstate))
     #print(b)
-    b = Game().game_state
+    b = Game().board
     #print("180 degree rotation")
     #print (b)
     assert(b.wstate == b.bit_reverse_64(b.wstate))
     assert(b.bstate == b.bit_reverse_64(b.bstate))
+    print("Symmetry test successful.")
+
+def test_eval():
+    g = Game()
+    assert(g.eval() == 0)
+    b = g.board
+    b[2*8+5] = Color.WHITE
+    b[3*8+5] = Color.BLACK
+    b[4*8+2] = Color.BLACK
+    b[5*8+2] = Color.WHITE
+    assert(g.eval_structure(Color.WHITE) == 4)
+    assert(g.eval_structure(Color.BLACK) == -4)
+    b[0] = Color.BLACK
+    assert(g.eval_structure(Color.BLACK)==48)
+    assert(g.eval_structure(Color.WHITE)==-48)
+    g = Game()
+    assert(len(g.next_moves(Color.BLACK))==4)
+    g.make_move(Color.BLACK,Move(4,2))
+    np.testing.assert_almost_equal(g.eval(),2.160542979230793)
+    print("Evaluation Test successful")
+
+
 
         
     
 def main():
-    test()
-    run()
+    parser = argparse.ArgumentParser(description='CLI based reversi game with AI player')
+    parser.add_argument('--test', action='store_true')
+    parser.add_argument('-v','--verbose', action='store_true')
+
+    args = parser.parse_args()
+    if args.test:
+        test_symmetry()
+        test_eval()
+    else:
+        run()
     
     
 
 
 def run():
     g = Game()
-    b = g.game_state
+    b = g.board
     b[2*8+5] = Color.WHITE
     b[3*8+5] = Color.BLACK
     b[4*8+2] = Color.BLACK
