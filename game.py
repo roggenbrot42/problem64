@@ -203,49 +203,8 @@ class Game:
 
         score = (M+S)*W + A*(1-W)
         return score
-
     
-    def minimax_max(self, c, depth):
-        moves = self.next_moves(c)
-
-        if self.depth == depth and len(moves) == 1:
-            return (m.inf, moves[0])
-
-        #game is finished can't move anymore
-        if len(moves) == 0 or depth == 0:
-            return (self.eval(c,moves),None)
-
-        retmv = None
-
-        max_value = -m.inf
-        for mov in moves:
-            s = self.make_move(c,mov)
-            value = self.minimax_min(-c,depth-1)
-            max_value = max(max_value,value)
-            self.undo_move(mov,s)
-        return (value,retmv)
-
-    def minimax_min(self, c, depth):
-        moves = self.next_moves(c)
-
-        #game is finished can't move anymore
-        if len(moves) == 0 or depth == 0:
-            return self.eval(c,moves)
-
-        min_value = m.inf
-        for mov in moves:
-            s = self.make_move(c,mov)
-            (value,xxx) = self.minimax_max(-c,depth-1)
-            min_value = min(min_value, value)
-            self.undo_move(mov,s)
-        return value
-
-    def alphabeta_init(self,depth):
-        moves = self.next_moves(self.current_player)
-        if len(moves) == 1:
-            return moves[0]
-
-        retmov = None
+    def sort_initial_moves(self,moves):
         sorted_moves = []
         alpha = -m.inf
         beta = m.inf
@@ -257,6 +216,19 @@ class Game:
             self.undo_move(mov,s)
             sorted_moves.append((value,mov))
         sorted_moves.sort(reverse=True)
+        return sorted_moves
+
+    def alphabeta_init(self,depth):
+        moves = self.next_moves(self.current_player)
+        if len(moves) == 1:
+            return moves[0]
+
+        retmov = None
+        alpha = -m.inf
+        beta = m.inf
+        max_value = alpha
+        value = 0
+        sorted_moves = self.sort_initial_moves(moves)
         for item in sorted_moves:
             mov = item[1]
             s = self.make_move(self.current_player,mov)
@@ -388,7 +360,7 @@ def run():
     
 
     g.shallow_depth = 4
-    depth = 12
+    depth = 7
 
     passing = 0
     moves = []
@@ -403,12 +375,8 @@ def run():
             sym = g.symm
             t1 = time.time()
             
-            tmp = g.zobrist[g.current_hash]
-            if tmp == None:
-                (value,mv) = g.alphabeta_init(depth)
-                g.zobrist[g.current_hash] = (mv,value,depth)
-            else:
-                (mv, value) = tmp
+            (value,mv) = g.alphabeta_init(depth)
+
             t1 = time.time() - t1
             print("Time: {}s".format(t1))
             cev = g.evals - cev
@@ -431,8 +399,14 @@ def run():
 
             g.current_player = -g.current_player
         except KeyboardInterrupt:
-            g.zobrist.save_to_file('zobrist.npz')
+            #g.zobrist.save_to_file('zobrist.npz')
             break
+        except: #make crashes traceable
+            for mov in moves:
+                print(mov,end="")
+                print()
+            print(b.wstate)
+            print(b.bstate)
     
     c = g.count()
     if c[Color.WHITE] > c[Color.BLACK]:
