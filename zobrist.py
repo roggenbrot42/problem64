@@ -30,6 +30,7 @@ class ZobristTable:
         except FileNotFoundError:
             print("Hash table not found, creating new one...")
             self.calc_keys()
+            print("Done.")
         
     def __setitem__(self,key,value):
         #TODO: account for collisions
@@ -49,12 +50,13 @@ class ZobristTable:
         item = self.tp_table[index]
         if isinstance(item,tuple):
             return item[1]
-        else:
+        elif isinstance(item,list):
             for it in item:
                 if it[0] == key:
                     return it[1]
             return None
-
+        else:
+            return None
 
         
 
