@@ -22,9 +22,10 @@ class Color:
             return '▢'
 
 class Move:
-    def __init__(self,x,y):
+    def __init__(self,x,y,flipmask,color):
         self.x = int(x)
         self.y = int(y)
+        self.flipmask = flipmask
 
     def __str__(self):
         return f"{chr(self.x+97)}{8-self.y}"
@@ -43,11 +44,6 @@ class Move:
         else:
             return (self.x,self.y)<=(other.x,other.y)
 
-    def isValid(self):
-        if self.x >= 0 and self.x <= 7 and self.y >= 0 and self.y <= 7:
-            return True
-        else:
-            return False
     def __hash__(self):
         return self.x*16+self.y
  
@@ -103,6 +99,10 @@ class Board:
     def flip(self,key):
         self.wstate = self.wstate ^ (1 << key)
         self.bstate = self.bstate ^ (1 << key)
+
+    def apply_flipmask(self,flipmask):
+        self.wstate ^= flipmask
+        self.bstate ^= flipmask
     
     def delitem(self,key):
         self.wstate &= ~(1 << key)
@@ -161,6 +161,12 @@ class Board:
         c[Color.WHITE] = a.count(True)
         c[Color.BLACK] = b.count(True)
         return c
+    
+    def is_valid_move(self,move):
+        if move.x >= 0 and move.x <= 7 and move.y >= 0 and move.y <= 7:
+            return True
+        else:
+            return False
 
     @staticmethod
     def tostring(x,y):

@@ -6,7 +6,7 @@ import copy
 from bitarray import bitarray
 from bitarray import util as btutil
 import argparse
-from zobrist import ZobristTable
+#from zobrist import ZobristTable
 from problem64 import Color, Move, Board, Stack
 
 class Game:
@@ -28,9 +28,9 @@ class Game:
         self.moves = 0
         self.current_player = Color.BLACK
         self.flipstack = Stack(3000)
-        self.zobrist = ZobristTable()
-        self.zobrist.calc_keys()
-        self.current_hash = self.zobrist.hash_board(self.board)
+        #self.zobrist = ZobristTable()
+        #self.zobrist.calc_keys()
+        #self.current_hash = self.zobrist.hash_board(self.board)
     
     structure = np.array([[16, -4, 4, 2, 2, 4, -4, 16],
                             [-4, -12, -2, -2 ,-2, -2, -12,-4],
@@ -40,6 +40,19 @@ class Game:
                             [4, -2, 4, 2, 2, 4, -2, 4],
                             [-4, -12, -2, -2 ,-2, -2, -12,-4],
                             [16, -4, 4, 2, 2, 4, -4, 16]]).flatten()
+    #possible directions for each position, stored as bitmask. starting from up left (MSB), clockwise, to up (LSB)
+    directions = np.array([ [0,    0,    0,    0,    0,    0,    0,    0,    0, 0],
+                            [0, 0x1C, 0x7C, 0x7C, 0x7C, 0x7C, 0x7C, 0x7C, 0x70, 0],
+                            [0, 0x1F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xF1, 0],
+                            [0, 0x1F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xF1, 0],
+                            [0, 0x1F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xF1, 0],
+                            [0, 0x1F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xF1, 0],
+                            [0, 0x1F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xF1, 0],
+                            [0, 0x1F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xF1, 0],
+                            [0, 0x07, 0xC7, 0xC7, 0xC7, 0xC7, 0xC7, 0xC7, 0x70, 0],
+                            [0,    0,    0,    0,    0,    0,    0,   0,     0, 0]]).flatten()
+
+    
         
 
     #TODO: Implement actual test
@@ -55,7 +68,7 @@ class Game:
     def draw_board(self):
         print(self.board)
 
-    def scan_move(self, i, j, player):
+    def scan_player_position(self, i, j, color):
         retval = []
         for yinc in range(-1,2):
             for xinc in range(-1,2):
@@ -65,13 +78,14 @@ class Game:
                 y = i
 
                 nmoves = 0
-
+                tmp_bitmask = 0 #replace by board?
                 while True:
                     x += xinc
                     y += yinc
                     if x>=0 and y>=0 and x<=7 and y<=7:
-                        if self.board[y*8+x] == -player:
+                        if self.board[y*8+x] == -color:
                             nmoves += 1
+                            tmp_bitmask |= (1 << y*8+x)
                         else:
                             break
                     else:
@@ -82,13 +96,14 @@ class Game:
                     if x < 0 or y < 0:
                         print("boink")
                     else:
-                        retval.append(Move(x,y))
+                        retval.append(Move(x,y,tmp_bitmask,color))
 
         return retval
     
-    #TODO: this function is too slow
-    def next_moves(self,player):
+    #TODO: this function is too slow, more like a midgame function? definitely too slow for early/late
+    def seek_moves_player(self,player):
         next_moves = []
+        unique = set()
 
         if self.board.outside_square() == False:
             rmin = 1
@@ -100,11 +115,15 @@ class Game:
         for i in range(rmin,rmax):
             for j in range(rmin,rmax):
                 if self.board[i*8+j] == player:
-                    m = self.scan_move(i,j,player)
-                    next_moves += m
-        used = set()
-        unique = [x for x in next_moves if x not in used and (used.add(x) or True)]
-        return unique
+                    m = self.scan_player_position(i,j,player)
+                    tmp = [x for x in m if x not in unique and (unique.add(x) or next_moves.append(x) or True)]
+                    for x in tmp: #must be in next_moves then
+                        idx = next_moves.index(x)
+                        next_moves[idx].flipmask |= x.flipmask #merge moves
+
+        #used = set()  
+        #unique = [x for x in next_moves if x not in used and (used.add(x) or True)]
+        return next_moves
 
     def make_move(self,player,move):
         flipped = 0
@@ -112,37 +131,12 @@ class Game:
         j = move.x
 
         self.board[i*8+j] = player
-        self.current_hash ^= int(self.zobrist.key_table[i*8+j][player])
+        #self.current_hash ^= int(self.zobrist.key_table[i*8+j][player]) #this is BS if you don't also include the flipped pieces
+        self.board.apply_flipmask(move.flipmask)
 
-        for yinc in range(-1,2):
-            for xinc in range(-1,2):
-                if xinc == 0 and yinc ==0:
-                    continue
-                y = i
-                x = j
-                nmoves = 0
+        fmba = btutil.int2ba(move.flipmask)
+        flipped = fmba.count(True)
 
-                while True:
-                    x += xinc
-                    y += yinc
-                    if x>=0 and y>=0 and x<=7 and y<=7:
-                        if self.board[y*8+x] == -player:
-                            nmoves += 1
-                        else:
-                            break
-                    else:
-                        nmoves = 0
-                        break
-
-                if nmoves > 0 and self.board[y*8+x] == player:
-                    x -= xinc
-                    y -= yinc
-                    while self.board[y*8+x] == -player:
-                        self.flipstack.push(y,x)
-                        flipped += 1
-                        self.board.flip(y*8+x)
-                        x -= xinc
-                        y -= yinc
         self.counter[player] += flipped + 1
         self.counter[-player] -= flipped
 
@@ -157,11 +151,9 @@ class Game:
         self.counter[player] -=  flipped + 1
         self.counter[-player] += flipped
         self.board[i*8+j] = Color.NONE
-        self.current_hash ^= int(self.zobrist.key_table[i*8+j][player]) #TODO: zobrist.get_key()
+        #self.current_hash ^= int(self.zobrist.key_table[i*8+j][player]) #TODO: zobrist.get_key()
+        self.board.apply_flipmask(move.flipmask)
 
-        for i in range(0,flipped):
-            (y,x) = self.flipstack.pop()
-            self.board.flip(y*8+x)
     
     def eval_structure(self,c):
         structure_sum = 0
@@ -190,8 +182,8 @@ class Game:
     def eval(self):
         self.evals += 1
 
-        omoves = self.next_moves(-self.current_player)
-        moves = self.next_moves(self.current_player)
+        omoves = self.seek_moves_player(-self.current_player)
+        moves = self.seek_moves_player(self.current_player)
 
         M = (len(moves)-len(omoves))*2
         S = self.eval_structure(self.current_player)
@@ -204,7 +196,7 @@ class Game:
         score = (M+S)*W + A*(1-W)
         return score
     
-    def sort_initial_moves(self,moves):
+    def shallow_search_sort_moves(self,moves):
         sorted_moves = []
         alpha = -m.inf
         beta = m.inf
@@ -219,7 +211,7 @@ class Game:
         return sorted_moves
 
     def alphabeta_init(self,depth):
-        moves = self.next_moves(self.current_player)
+        moves = self.seek_moves_player(self.current_player)
         if len(moves) == 1:
             return moves[0]
 
@@ -228,7 +220,7 @@ class Game:
         beta = m.inf
         max_value = alpha
         value = 0
-        sorted_moves = self.sort_initial_moves(moves)
+        sorted_moves = self.shallow_search_sort_moves(moves)
         for item in sorted_moves:
             mov = item[1]
             s = self.make_move(self.current_player,mov)
@@ -246,7 +238,7 @@ class Game:
         return (value,retmov)
 
     def alphabeta_max(self, depth, alpha, beta):
-        moves = self.next_moves(self.current_player)
+        moves = self.seek_moves_player(self.current_player)
 
         if len(moves) == 0 or depth == 0:
             return self.eval()
@@ -264,7 +256,7 @@ class Game:
         return max_value
     
     def alphabeta_min(self, depth, alpha, beta):
-        moves = self.next_moves(-self.current_player)
+        moves = self.seek_moves_player(-self.current_player)
         if len(moves) == 0 or depth == 0:
             return self.eval()
 
@@ -322,7 +314,7 @@ def test_eval():
     assert(g.eval_structure(Color.BLACK)==48)
     assert(g.eval_structure(Color.WHITE)==-48)
     g = Game()
-    assert(len(g.next_moves(Color.BLACK))==4)
+    assert(len(g.seek_moves_player(Color.BLACK))==4)
     g.make_move(Color.BLACK,Move(4,2))
     np.testing.assert_almost_equal(g.eval(),2.160542979230793)
     print("Evaluation Test successful")
@@ -354,9 +346,9 @@ def run():
     b[4*8+2] = Color.BLACK
     b[5*8+2] = Color.WHITE
     print(b)
-    g.zobrist.load_from_file('zobrist.npz')
-    hashed_board = g.zobrist.hash_board(b)
-    g.current_hash = hashed_board
+    #g.zobrist.load_from_file('zobrist.npz')
+    #hashed_board = g.zobrist.hash_board(b)
+    #g.current_hash = hashed_board
     
 
     g.shallow_depth = 4
