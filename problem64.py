@@ -132,6 +132,17 @@ class Board:
         val = ((val & 0x00FF00FF00FF00FF) << 8) | ((val & 0xFF00FF00FF00FF00) >> 8)
         return val
     
+    @staticmethod
+    def count_bits(input):
+        val = ((input & 0xAAAAAAAAAAAAAAAAAA) >> 1) + (input & 0x5555555555555555)
+        val = (val & 0x3333333333333333) + ((val & 0xCCCCCCCCCCCCCCCC) >> 2)
+        val = (val & 0x0F0F0F0F0F0F0F0F) + ((val & 0xF0F0F0F0F0F0F0F0) >> 4)
+        val = (val & 0x00FF00FF00FF00FF) + ((val & 0xFF00FF00FF00FF00) >> 8)
+        val = (val & 0x0000FFFF0000FFFF) + ((val & 0xFFFF0000FFFF0000) >> 16)
+        val = (val & 0x00000000FFFFFFFF) + ((val & 0xFFFFFFFF00000000) >> 32)
+        
+        return val
+    
     def outside_square(self):
         return (self.wstate | self.bstate) & ~self.square_mask > 0
 
@@ -155,11 +166,9 @@ class Board:
         return symmetry
     
     def count(self):
-        a = btutil.int2ba(self.wstate)
-        b = btutil.int2ba(self.bstate)
         c = Counter()
-        c[Color.WHITE] = a.count(True)
-        c[Color.BLACK] = b.count(True)
+        c[Color.WHITE] = self.count_bits(self.wstate)
+        c[Color.BLACK] = self.count_bits(self.bstate)
         return c
 
     @staticmethod

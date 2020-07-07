@@ -112,7 +112,7 @@ class Game:
         j = move.x
 
         self.board[i*8+j] = player
-        self.current_hash ^= int(self.zobrist.key_table[i*8+j][player])
+        #self.current_hash ^= int(self.zobrist.key_table[i*8+j][player])
 
         for yinc in range(-1,2):
             for xinc in range(-1,2):
@@ -157,7 +157,7 @@ class Game:
         self.counter[player] -=  flipped + 1
         self.counter[-player] += flipped
         self.board[i*8+j] = Color.NONE
-        self.current_hash ^= int(self.zobrist.key_table[i*8+j][player]) #TODO: zobrist.get_key()
+        #self.current_hash ^= int(self.zobrist.key_table[i*8+j][player]) #TODO: zobrist.get_key()
 
         for i in range(0,flipped):
             (y,x) = self.flipstack.pop()
@@ -327,19 +327,24 @@ def test_eval():
     np.testing.assert_almost_equal(g.eval(),2.160542979230793)
     print("Evaluation Test successful")
 
-
-
+def test_count():
+    arg = 0xFFFFFFEFFFFFFF3F
+    print("{0:b}".format(Board.count_bits(arg)))
+    print(Board.count_bits(arg))
         
     
 def main():
     parser = argparse.ArgumentParser(description='CLI based reversi game with AI player')
     parser.add_argument('--test', action='store_true')
     parser.add_argument('-v','--verbose', action='store_true')
+    parser.add_argument('--count','-c',action='store_true')
 
     args = parser.parse_args()
     if args.test:
         test_symmetry()
         test_eval()
+    elif args.count:
+        test_count()
     else:
         run()
     
