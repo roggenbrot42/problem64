@@ -134,6 +134,7 @@ class Game:
         #self.current_hash ^= int(self.zobrist.key_table[i*8+j][player]) #this is BS if you don't also include the flipped pieces
         self.board.apply_flipmask(move.flipmask)
 
+
         fmba = btutil.int2ba(move.flipmask)
         flipped = fmba.count(True)
 
@@ -153,6 +154,7 @@ class Game:
         self.board[i*8+j] = Color.NONE
         #self.current_hash ^= int(self.zobrist.key_table[i*8+j][player]) #TODO: zobrist.get_key()
         self.board.apply_flipmask(move.flipmask)
+
 
     
     def eval_structure(self,c):
@@ -319,19 +321,24 @@ def test_eval():
     np.testing.assert_almost_equal(g.eval(),2.160542979230793)
     print("Evaluation Test successful")
 
-
-
+def test_count():
+    arg = 0xFFFFFFEFFFFFFF3F
+    print("{0:b}".format(Board.count_bits(arg)))
+    print(Board.count_bits(arg))
         
     
 def main():
     parser = argparse.ArgumentParser(description='CLI based reversi game with AI player')
     parser.add_argument('--test', action='store_true')
     parser.add_argument('-v','--verbose', action='store_true')
+    parser.add_argument('--count','-c',action='store_true')
 
     args = parser.parse_args()
     if args.test:
         test_symmetry()
         test_eval()
+    elif args.count:
+        test_count()
     else:
         run()
     
