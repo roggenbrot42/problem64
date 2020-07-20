@@ -80,7 +80,7 @@ def main():
     z.calc_keys()
     z.save_to_file("table.npz")
     print(z.key_table[33])
-    z[z.key_table[33][2]] = (Move(1,1),3)
+    z[z.key_table[33][2]] = (Move(1,1),0,3)
     print(z[z.key_table[33][2]])
 
 

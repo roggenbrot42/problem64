@@ -26,6 +26,7 @@ class Move:
         self.x = int(x)
         self.y = int(y)
         self.flipmask = flipmask
+        self.color = color
 
     def __str__(self):
         return f"{chr(self.x+97)}{8-self.y}"
@@ -131,9 +132,15 @@ class Board:
         val = ((val & 0x0000FFFF0000FFFF) << 16) | ((val & 0xFFFF0000FFFF0000) >> 16)
         val = ((val & 0x00FF00FF00FF00FF) << 8) | ((val & 0xFF00FF00FF00FF00) >> 8)
         return val
+
+    @staticmethod
+    def count_bits_8(input):
+        val = ((input & 0xAA) >> 1) + (input & 0xFF)
+        val = (val & 0x33) + ((val & 0xCC) >> 2)
+        val = (val & 0x0F) + ((val & 0xF0) >> 4)
     
     @staticmethod
-    def count_bits(input):
+    def count_bits_64(input):
         val = ((input & 0xAAAAAAAAAAAAAAAAAA) >> 1) + (input & 0x5555555555555555)
         val = (val & 0x3333333333333333) + ((val & 0xCCCCCCCCCCCCCCCC) >> 2)
         val = (val & 0x0F0F0F0F0F0F0F0F) + ((val & 0xF0F0F0F0F0F0F0F0) >> 4)
@@ -167,8 +174,8 @@ class Board:
     
     def count(self):
         c = Counter()
-        c[Color.WHITE] = self.count_bits(self.wstate)
-        c[Color.BLACK] = self.count_bits(self.bstate)
+        c[Color.WHITE] = self.count_bits_64(self.wstate)
+        c[Color.BLACK] = self.count_bits_64(self.bstate)
         return c
     
     def is_valid_move(self,move):
