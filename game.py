@@ -60,13 +60,7 @@ class Game:
         if self.board[move.y*8+move.x] != Color.NONE:
             return False
         return True
-
-    def count(self):
-        return self.board.count()
        
-
-    def draw_board(self):
-        print(self.board)
 
     def scan_player_position(self, i, j, color):
         retval = []
@@ -125,11 +119,12 @@ class Game:
         #unique = [x for x in next_moves if x not in used and (used.add(x) or True)]
         return next_moves
 
-    def make_move(self,player,move):
+    def make_move(self,move):
         flipped = 0
         i = move.y
         j = move.x
 
+        player = move.color
         self.board[i*8+j] = player
         #self.current_hash ^= int(self.zobrist.key_table[i*8+j][player]) #this is BS if you don't also include the flipped pieces
         self.board.apply_flipmask(move.flipmask)
@@ -205,7 +200,7 @@ class Game:
         max_value = alpha
         value = 0
         for mov in moves:
-            s = self.make_move(self.current_player,mov)
+            s = self.make_move(mov)
             value = self.alphabeta_min(self.shallow_depth-1,max_value,beta)
             self.undo_move(mov,s)
             sorted_moves.append((value,mov))
@@ -225,7 +220,7 @@ class Game:
         sorted_moves = self.shallow_search_sort_moves(moves)
         for item in sorted_moves:
             mov = item[1]
-            s = self.make_move(self.current_player,mov)
+            s = self.make_move(mov)
             value = self.alphabeta_min(depth-1,max_value,beta)
             self.undo_move(mov,s)
             if value > max_value:
@@ -247,7 +242,7 @@ class Game:
         
         max_value = alpha
         for mov in moves:
-            s = self.make_move(self.current_player,mov)
+            s = self.make_move(mov)
             value = self.alphabeta_min(depth-1,max_value,beta)
             self.undo_move(mov,s)
             if value > max_value:
@@ -264,7 +259,7 @@ class Game:
 
         min_value = beta
         for mov in moves:
-            s = self.make_move(-self.current_player,mov)
+            s = self.make_move(mov)
             value = self.alphabeta_max(depth-1,alpha,min_value)
             self.undo_move(mov,s)
             if value < min_value:
@@ -317,14 +312,14 @@ def test_eval():
     assert(g.eval_structure(Color.WHITE)==-48)
     g = Game()
     assert(len(g.seek_moves_player(Color.BLACK))==4)
-    g.make_move(Color.BLACK,Move(4,2))
+    g.make_move(Move(4,2,0,Color.BLACK))
     np.testing.assert_almost_equal(g.eval(),2.160542979230793)
     print("Evaluation Test successful")
 
 def test_count():
     arg = 0xFFFFFFEFFFFFFF3F
-    print("{0:b}".format(Board.count_bits(arg)))
-    print(Board.count_bits(arg))
+    print("{0:b}".format(Board.count_bits_64(arg)))
+    print(Board.count_bits_64(arg))
         
     
 def main():
@@ -359,7 +354,7 @@ def run():
     
 
     g.shallow_depth = 4
-    depth = 7
+    depth = 6
 
     passing = 0
     moves = []
@@ -385,9 +380,9 @@ def run():
             print("Evals: {} Evals/s: {} Moves: {} Pruned: {} Symmetry: {}".format(cev,cev/t1,cmv,cpr,sym))
 
             if mv != None:
-                g.make_move(g.current_player,mv)
+                g.make_move(mv)
                 moves.append(mv)
-                g.draw_board()
+                print(g.board)
                 print("Color: {} Move: {} Value: {:0.9f}".format(Color.format(g.current_player),mv,value))
                 passing = 0
             else:
@@ -407,7 +402,7 @@ def run():
             print(b.wstate)
             print(b.bstate)
     
-    c = g.count()
+    c = g.board.count()
     if c[Color.WHITE] > c[Color.BLACK]:
         print("WHITE won!")
     else:
