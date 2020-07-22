@@ -119,11 +119,12 @@ class Game:
         #unique = [x for x in next_moves if x not in used and (used.add(x) or True)]
         return next_moves
 
-    def make_move(self,player,move):
+    def make_move(self,move):
         flipped = 0
         i = move.y
         j = move.x
 
+        player = move.color
         self.board[i*8+j] = player
         #self.current_hash ^= int(self.zobrist.key_table[i*8+j][player]) #this is BS if you don't also include the flipped pieces
         self.board.apply_flipmask(move.flipmask)
@@ -353,7 +354,11 @@ def run():
     
 
     g.shallow_depth = 4
+<<<<<<< HEAD
     depth = 8
+=======
+    depth = 6
+>>>>>>> master
 
     passing = 0
     moves = []
